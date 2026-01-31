@@ -1,2 +1,0 @@
-python-dotenv>=1.2.1
-vision-agents[gemini,getstream]>=0.2.10
