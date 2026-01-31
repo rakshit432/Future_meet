@@ -248,7 +248,33 @@ def print_meeting_summary():
     print("✅ Summary Complete")
     print("="*70 + "\n")
 
+# Health check server for Render
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+    
+    def log_message(self, format, *args):
+        pass  # Data handling silence
+
+def start_health_server():
+    try:
+        port = int(os.environ.get("PORT", 10000))
+        server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+        logger.info(f"✅ Health check server listening on port {port}")
+        server.serve_forever()
+    except Exception as e:
+        logger.error(f"❌ Failed to start health server: {e}")
+
 if __name__ == "__main__":
+    # Start health check server in background
+    health_thread = threading.Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+
     call_id = os.getenv("CALL_ID", f"meeting-{uuid4().hex[:8]}")
     
     print("\n" + "="*70)
