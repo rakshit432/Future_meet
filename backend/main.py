@@ -285,8 +285,29 @@ if __name__ == "__main__":
     print("   2. Q&A with 'Hey Assistant'")
     print("="*70 + "\n")
     
+    async def main_loop(call_id):
+        retry_count = 0
+        while True:
+            try:
+                await start_agent(call_id)
+                logger.info("👋 Meeting ended normally.")
+                break
+            except Exception as e:
+                retry_count += 1
+                wait_time = min(30, 2 * retry_count) # Exponential backoff capped at 30s
+                logger.error(f"⚠️ Agent disconnected (Error: {e})")
+                logger.info(f"🔄 Attempting to reconnect in {wait_time}s (Attempt {retry_count})...")
+                await asyncio.sleep(wait_time)
+                
+                # Reset for new connection attempts
+                meeting_data["transcript"].append({
+                    "speaker": "System", 
+                    "text": "[Connection lost. Reconnecting...]",
+                    "timestamp": 0
+                })
+
     try:
-        asyncio.run(start_agent(call_id))
+        asyncio.run(main_loop(call_id))
     except KeyboardInterrupt:
         print("\n\n🛑 Stopped by user")
     finally:
