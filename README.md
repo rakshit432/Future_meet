@@ -1,4 +1,4 @@
-# 🎙️ Smart Meeting Assistant
+# 🎙️Future Meet - Smart Meeting Assistant
 
 > **Your intelligent, real-time meeting companion that transcribes, answers questions, and summarizes calls.**
 
