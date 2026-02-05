@@ -215,6 +215,18 @@ async def start_agent(call_id: str):
 
     logger.info("✅ Attempting to join call...")
     try:
+        # Force update call settings to ensure transcription is ON
+        logger.info("⚙️ Configuring call settings for transcription...")
+        await call.get_or_create(data={
+            "settings": {
+                "transcription": {
+                    "mode": "auto-on",
+                    "closed_caption_mode": "auto-on"
+                }
+            }
+        })
+        logger.info("✅ Call settings updated")
+
         async with agent.join(call):
             logger.info("\n" + "="*60)
             logger.info("🎙️  MEETING ASSISTANT ACTIVE!")
