@@ -40,7 +40,11 @@ meeting_data = {
 }
 
 async def start_agent(call_id: str):
+    logging.getLogger("httpx").setLevel(logging.WARNING) # Disable HTTPX request logging
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    
     logger.info("🤖 Starting Meeting Assistant...")
+    # Key logging removed for security
     logger.info(f"📞 Call ID: {call_id}")
     meeting_data["stop_event"] = asyncio.Event()
     
@@ -217,15 +221,21 @@ async def start_agent(call_id: str):
     try:
         # Force update call settings to ensure transcription is ON
         logger.info("⚙️ Configuring call settings for transcription...")
-        await call.get_or_create(data={
-            "settings": {
-                "transcription": {
-                    "mode": "auto-on",
-                    "closed_caption_mode": "auto-on"
+        logger.debug(f"Calling get_or_create on call {call_id}...")
+        try:
+             await call.get_or_create(data={
+                "created_by_id": "meeting-assistant-bot",
+                "settings": {
+                    "transcription": {
+                        "mode": "auto-on",
+                        "closed_caption_mode": "auto-on"
+                    }
                 }
-            }
-        })
-        logger.info("✅ Call settings updated")
+            })
+             logger.info("✅ Call settings updated / Call created")
+        except Exception as e:
+            logger.error(f"❌ Error in get_or_create: {e}")
+            raise
 
         async with agent.join(call):
             logger.info("\n" + "="*60)
