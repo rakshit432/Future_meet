@@ -9,13 +9,14 @@ export default function Home() {
 
   const handleJoin = () => {
     const name = username.trim() === "" ? "Guest" : username.trim();
-    const meetingId = process.env.NEXT_PUBLIC_MEETING_ID;
+    // Use the CALL_ID from .env, fallback to default if missing
+    const meetingId = process.env.NEXT_PUBLIC_CALL_ID || "default_meeting_room";
     router.push(`/meeting/${meetingId}?name=${encodeURIComponent(name)}`);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0E1117] text-gray-100 relative overflow-hidden">
-      
+
       {/* Ambient background */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.12),transparent_40%),radial-gradient(circle_at_80%_80%,rgba(34,211,238,0.10),transparent_45%)]" />
 

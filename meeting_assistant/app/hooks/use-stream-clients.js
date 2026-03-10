@@ -14,7 +14,6 @@ export function useStreamClients({ apiKey, user, token: initialToken, serverTime
   useEffect(() => {
     tokenRef.current = initialToken;
   }, [initialToken]);
-
   // Update server time offset and leeway when props change
   useEffect(() => {
     if (initialServerTime) {
