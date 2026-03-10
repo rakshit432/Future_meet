@@ -1,3 +1,5 @@
 python-dotenv>=1.2.1
 getstream<3.0.0
-vision-agents[gemini,getstream]==0.2.10
+vision-agents==0.2.10
+vision-agents-plugins-gemini==0.2.10
+vision-agents-plugins-getstream==0.2.10
