@@ -24,15 +24,20 @@ import {
   ChevronDown,
   ShieldCheck,
   CircleDot,
-  MessageSquare
+  MessageSquare,
+  Save,
+  Check
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 import { TranscriptPanel } from "@/app/components/transcript";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
-function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setLayout }) {
-  const { useParticipantCount } = useCallStateHooks();
+function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setLayout, onSaveMeeting, isSaving, isSaved, saveError }) {
+  const { useParticipantCount, useParticipants } = useCallStateHooks();
   const participantCount = useParticipantCount();
+  const participants = useParticipants();
+  const { data: session } = useSession();
 
   return (
     <motion.div 
@@ -96,10 +101,37 @@ function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setL
           <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
           <span className="text-xs font-semibold text-gray-200">Transcript</span>
         </button>
+
+        {/* Save Meeting Button */}
+        {session && (
+          <button 
+            onClick={onSaveMeeting}
+            disabled={isSaving || isSaved}
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+          >
+            {isSaving ? (
+              <Save className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+            ) : isSaved ? (
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <Save className="w-3.5 h-3.5 text-emerald-400" />
+            )}
+            <span className="text-xs font-semibold text-gray-200">
+              {isSaved ? 'Saved' : 'Save'}
+            </span>
+          </button>
+        )}
         
-        <div className="hidden md:flex items-center gap-2 px-2.5 md:px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
+        <div className="hidden md:flex items-center gap-3 px-2.5 md:px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
           <Users className="w-3 h-3 md:w-3.5 h-3.5 text-gray-400" />
-          <span className="text-xs font-semibold text-gray-200">{participantCount} Participants</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="text-[10px] font-semibold text-gray-300">
+                {participantCount} Participant{participantCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
         </div>
         <button className="p-1.5 md:p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
           <Settings className="w-3.5 h-3.5 md:w-4 h-4 text-gray-400" />
@@ -116,6 +148,9 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
   const [showTranscript, setShowTranscript] = useState(false);
   const [layout, setLayout] = useState("grid"); // "grid" or "speaker"
   const [mobileTranscriptOpen, setMobileTranscriptOpen] = useState(false);
+  const [transcript, setTranscript] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const normalizedCallId =
     callId && callId !== "undefined"
@@ -135,31 +170,23 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
       try {
         const myCall = client.call(callType, normalizedCallId);
 
-        await myCall.getOrCreate({
-          data: {
-            created_by_id: userId,
-            members: [{ user_id: userId, role: "call_member" }],
-          },
+        await myCall.join({
+          create: true,
         });
-
-        await myCall.join();
-        await myCall.startClosedCaptions({ language: "en" });
         
-        // Ensure transcription is active for the AI assistant to hear
+        // Start closed captions
+        try {
+          await myCall.startClosedCaptions({ language: "en" });
+        } catch (e) {
+          console.warn("Failed to start closed captions:", e);
+        }
+        
+        // Start transcription
         try {
           await myCall.startTranscription();
         } catch (e) {
           console.warn("Failed to start transcription:", e);
         }
-
-        try {
-          const mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-          });
-          if (mediaStream && typeof myCall.publishAudioStream === "function") {
-            await myCall.publishAudioStream(mediaStream);
-          }
-        } catch {}
 
         myCall.on("call.session_ended", () => onLeave?.());
         setCall(myCall);
@@ -190,6 +217,65 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
       }
     } finally {
       onLeave?.();
+    }
+  };
+
+  const [saveError, setSaveError] = useState(null);
+
+  const handleSaveMeeting = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      // Generate better key points from transcript
+      const keyPoints = transcript
+        .map(t => t.text)
+        .filter(t => {
+          const hasActionWords = /action|todo|need|should|must|important|key|decided|agreed|next step/i.test(t);
+          const isLongEnough = t.length > 30;
+          const isNotDuplicate = !t.toLowerCase().includes("i don't know") && !t.toLowerCase().includes("wait");
+          return hasActionWords || (isLongEnough && isNotDuplicate);
+        })
+        .slice(-15); // Keep up to 15 key points
+
+      // Generate a simple summary
+      const summary = transcript.length > 0 
+        ? `This meeting covered ${transcript.length} topics with participants speaking. Key points included ${keyPoints.slice(0,3).map(kp => kp.substring(0, 60)).join(", ")}...` 
+        : "Meeting transcript available.";
+
+      const transcriptText = transcript.map(t => `${t.speaker || 'Unknown'} [${t.timestamp}]: ${t.text}`).join('\n');
+
+      const response = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meetingId: normalizedCallId,
+          title: `Meeting on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+          keyPoints,
+          transcript: transcriptText,
+          summary
+        })
+      });
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        throw new Error(`Server returned ${response.status} ${response.statusText}`);
+      }
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save meeting');
+      }
+
+      console.log('Meeting saved successfully:', result);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 3000);
+    } catch (e) {
+      console.error('Failed to save meeting:', e);
+      setSaveError(e.message);
+      setTimeout(() => setSaveError(null), 5000);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -255,7 +341,28 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
             setShowTranscript={setShowTranscript} 
             layout={layout}
             setLayout={setLayout}
+            onSaveMeeting={handleSaveMeeting}
+            isSaving={isSaving}
+            isSaved={isSaved}
+            saveError={saveError}
           />
+
+          {/* Save Error Notification */}
+          <AnimatePresence>
+            {saveError && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="px-4 py-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  <span>{saveError}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="flex-1 min-h-0 relative flex flex-col lg:flex-row gap-3 md:gap-6">
             {/* VIDEO AREA */}
@@ -317,7 +424,7 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
                   </div>
 
                   <div className="flex-1 overflow-hidden">
-                    <TranscriptPanel />
+                    <TranscriptPanel onTranscriptUpdate={setTranscript} />
                   </div>
                 </motion.div>
               )}
@@ -351,7 +458,7 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
                   className="mt-2 overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl"
                 >
                   <div className="h-full overflow-hidden">
-                    <TranscriptPanel />
+                    <TranscriptPanel onTranscriptUpdate={setTranscript} />
                   </div>
                 </motion.div>
               )}

@@ -6,7 +6,7 @@ import { useChatContext } from "stream-chat-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Bot, User, Clock, Sparkles } from "lucide-react";
 
-export function TranscriptPanel() {
+export function TranscriptPanel({ onTranscriptUpdate }) {
   const { client } = useChatContext();
   const [transcripts, setTranscripts] = useState([]);
   const transcriptEndRef = useRef(null);
@@ -14,7 +14,10 @@ export function TranscriptPanel() {
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [transcripts]);
+    if (onTranscriptUpdate) {
+      onTranscriptUpdate(transcripts);
+    }
+  }, [transcripts, onTranscriptUpdate]);
 
   useEffect(() => {
     if (!call) return;

@@ -24,7 +24,7 @@ from vision_agents.core.events import (
 
 # LLM events
 from vision_agents.core.llm.events import (
-    RealtimeUserSpeechTranscriptionEvent, 
+    RealtimeUserSpeechTranscriptionEvent,
     LLMResponseChunkEvent
 )
 
@@ -43,6 +43,8 @@ meeting_data = {
     "is_active": False
 }
 
+
+
 async def start_agent(call_id: str):
     logging.getLogger("httpx").setLevel(logging.WARNING) # Disable HTTPX request logging
     logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -51,8 +53,15 @@ async def start_agent(call_id: str):
     # Key logging removed for security
     logger.info(f"📞 Call ID: {call_id}")
     meeting_data["stop_event"] = asyncio.Event()
+    meeting_data["organizers"] = set()
+    meeting_data["members"] = set()
     
-    # Create agent with Gemini Realtime
+    # Set the correct environment variable for Gemini
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if gemini_key:
+        os.environ["GOOGLE_API_KEY"] = gemini_key
+        
+    # Create agent with Gemini
     agent = agents.Agent(
         edge=getstream.Edge(),
         agent_user=User(
@@ -346,9 +355,9 @@ if __name__ == "__main__":
     call_id = os.getenv("CALL_ID", f"meeting-{uuid4().hex[:8]}")
     
     print("\n" + "="*70)
-    print("🎯 SMART MEETING ASSISTANT")
+    print("SMART MEETING ASSISTANT")
     print("="*70)
-    print("\n✨ Features:")
+    print("\nFeatures:")
     print("   1. Auto-transcription")
     print("   2. Q&A with 'Hey Assistant'")
     print("="*70 + "\n")

@@ -3,3 +3,4 @@ getstream<3.0.0
 vision-agents==0.2.10
 vision-agents-plugins-gemini==0.2.10
 vision-agents-plugins-getstream==0.2.10
+vision-agents-plugins-huggingface==0.2.10
