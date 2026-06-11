@@ -27,7 +27,7 @@ export default function LiveMeetingPage() {
     );
   }
 
-  if (!session) return null;
+  if (!session || !session.user || !session.user.id) return null;
 
   const streamUser = {
     id: session.user.id,
