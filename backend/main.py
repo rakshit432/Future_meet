@@ -133,6 +133,15 @@ async def start_agent(call_id: str):
         speaker = getattr(event, 'participant_id', 'Unknown')
         transcript_text = event.text
         
+        # DEBUG: Send all transcripts to chat to verify the bot "hears" everything
+        try:
+            channel = meeting_data.get("channel")
+            if channel:
+                # We don't want to spam, so maybe only if it's a certain length or just log it
+                logger.info(f"Bot heard: {transcript_text}")
+        except:
+            pass
+        
         # Store transcript
         meeting_data["transcript"].append({
             "speaker": speaker,
@@ -163,6 +172,17 @@ async def start_agent(call_id: str):
 
             if question:
                 logger.info(f"❓ Q&A triggered via '{trigger}': {question}")
+                
+                # Send acknowledgement to chat
+                try:
+                    channel = meeting_data.get("channel")
+                    if channel:
+                        await channel.send_message({
+                            "text": f"Thinking about: {question}",
+                            "user_id": "meeting-assistant-bot"
+                        })
+                except:
+                    pass
 
                 # Build context from transcript
                 context = "MEETING TRANSCRIPT:\n\n"
@@ -186,6 +206,13 @@ async def start_agent(call_id: str):
             else:
                 logger.info(f"❓ Q&A trigger detected ({trigger}) but no question text")
                 try:
+                    # Send acknowledgement to chat
+                    channel = meeting_data.get("channel")
+                    if channel:
+                        await channel.send_message({
+                            "text": "I'm listening! How can I help?",
+                            "user_id": "meeting-assistant-bot"
+                        })
                     await agent.simple_response("The user said 'Hey Assistant'. Briefly acknowledge that you are listening.")
                 except Exception as e:
                     logger.error(f"❌ Q&A error: {e}")
@@ -245,6 +272,21 @@ async def start_agent(call_id: str):
             logger.info("\n" + "="*60)
             logger.info("🎙️  MEETING ASSISTANT ACTIVE!")
             logger.info("="*60)
+            
+            # Send join message to chat
+            try:
+                channel = meeting_data.get("channel")
+                if channel:
+                    await channel.send_message({
+                        "text": "Hello! I am your Meeting Assistant. I'm listening silently. Say 'Hey Assistant' to talk to me.",
+                        "user_id": "meeting-assistant-bot"
+                    })
+                
+                # Warm-up audio response
+                await agent.simple_response("Hello, I am now active and listening to the meeting.")
+            except Exception as e:
+                logger.error(f"❌ Failed to send join message or warm-up audio: {e}")
+                
             logger.info("\n📋 Features:")
             logger.info("   1. ✅ Auto-transcription")
             logger.info("   2. ✅ Q&A (say 'Hey Assistant')")

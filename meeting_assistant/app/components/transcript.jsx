@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useCall } from "@stream-io/video-react-sdk";
 import { useChatContext } from "stream-chat-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MessageSquare, Bot, User, Clock, Sparkles } from "lucide-react";
 
 export function TranscriptPanel() {
   const { client } = useChatContext();
@@ -41,6 +43,7 @@ export function TranscriptPanel() {
       setTranscripts((prev) => [
         ...prev,
         {
+          id: Math.random().toString(36).substr(2, 9),
           text: event.closed_caption.text,
           speaker:
             event.closed_caption.user?.name ||
@@ -48,7 +51,7 @@ export function TranscriptPanel() {
             "Unknown",
           timestamp: new Date(
             event.closed_caption.start_time
-          ).toLocaleTimeString(),
+          ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
     };
@@ -60,9 +63,10 @@ export function TranscriptPanel() {
       setTranscripts((prev) => [
         ...prev,
         {
+          id: message.id,
           text: message.text,
           speaker: message.custom?.speaker || message.user?.name || "Assistant",
-          timestamp: new Date(message.created_at).toLocaleTimeString(),
+          timestamp: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           noteType: message.custom?.note_type,
         },
       ]);
@@ -79,145 +83,120 @@ export function TranscriptPanel() {
   }, [call]);
 
   return (
-    <div className="h-full flex flex-col bg-[#0B0F19] text-gray-100">
-
-      {/* HEADER */}
-      <div className="sticky top-0 z-10 px-5 py-4 bg-black/50 backdrop-blur-xl border-b border-white/10">
-        <div className="flex items-center justify-between">
-
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-              <svg
-                className="w-5 h-5 text-indigo-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                />
-              </svg>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold tracking-wide">
-                Live Transcript
-              </h3>
-              <p className="text-[11px] text-gray-400">
-                {transcripts.length} entries
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-400">
-              Live
-            </span>
-          </div>
-        </div>
-      </div>
-
+    <div className="h-full flex flex-col bg-transparent text-gray-100">
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5 scroll-smooth">
-
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-3 md:py-6 space-y-2 md:space-y-4 scroll-smooth custom-scrollbar">
         {/* EMPTY STATE */}
-        {transcripts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
-            <div className="w-16 h-16 mb-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        <AnimatePresence mode="wait">
+          {transcripts.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex flex-col items-center justify-center h-full text-center py-8 md:py-12"
+            >
+              <div className="w-14 h-14 md:w-20 h-20 mb-3 md:mb-6 rounded-2xl md:rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center relative">
+                <div className="absolute inset-0 bg-indigo-500/10 blur-xl rounded-full" />
+                <MessageSquare className="w-6 h-6 md:w-8 h-8 text-indigo-400 relative z-10" />
+              </div>
+              <h3 className="text-xs md:text-sm font-bold text-gray-200 uppercase tracking-widest mb-1 md:mb-2">
+                Listening…
+              </h3>
+              <p className="text-[11px] md:text-xs text-gray-500 max-w-[180px] md:max-w-[200px] leading-relaxed">
+                Captions and AI notes will appear here as the meeting progresses.
+              </p>
+            </motion.div>
+          ) : (
+            <div className="space-y-2 md:space-y-4">
+              {transcripts.map((t, idx) => {
+            const isAssistant =
+              t.speaker === "Assistant" ||
+              t.speaker === "Meeting Assistant";
+
+            return (
+              <motion.div
+                key={t.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`group relative rounded-lg p-2 transition-all border ${
+                  isAssistant
+                    ? "bg-indigo-500/10 border-indigo-500/20"
+                    : "bg-white/5 border-white/10 hover:bg-white/10"
+                }`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-400 font-medium">
-              Waiting for conversation…
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Captions will appear in real-time
-            </p>
-          </div>
-        ) : (
-          <>
-            {transcripts.map((t, idx) => {
-              const isAssistant =
-                t.speaker === "Assistant" ||
-                t.speaker === "Meeting Assistant";
-
-              return (
-                <div
-                  key={idx}
-                  className={`group rounded-2xl p-4 transition-all border hover:-translate-y-[1px] ${
-                    isAssistant
-                      ? "bg-indigo-500/10 border-indigo-500/20 hover:border-indigo-500/30"
-                      : "bg-white/5 border-white/10 hover:border-white/20"
-                  }`}
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold ${
-                          isAssistant
-                            ? "bg-indigo-600 text-white shadow-indigo-500/30"
-                            : "bg-black/40 border border-white/10 text-gray-300"
-                        }`}
-                      >
-                        {t.speaker.charAt(0).toUpperCase()}
-                      </div>
-
-                      <div>
-                        <p
-                          className={`text-sm font-medium ${
-                            isAssistant
-                              ? "text-indigo-300"
-                              : "text-gray-200"
-                          }`}
-                        >
-                          {t.speaker}
-                        </p>
-                        <p className="text-[10px] text-gray-500 font-mono">
-                          {t.timestamp}
-                        </p>
-                      </div>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-5 h-5 rounded-md flex items-center justify-center shadow-inner ${
+                        isAssistant
+                          ? "bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white"
+                          : "bg-black/40 border border-white/10 text-gray-400"
+                      }`}
+                    >
+                      {isAssistant ? (
+                        <Bot className="w-2.5 h-2.5" />
+                      ) : (
+                        <span className="text-[9px] font-bold uppercase">{t.speaker.charAt(0)}</span>
+                      )}
                     </div>
 
-                    {t.noteType && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/40 border border-white/10 uppercase tracking-wide text-gray-400">
-                        {t.noteType.replace("_", " ")}
-                      </span>
-                    )}
+                    <div>
+                      <p
+                        className={`text-[10px] font-bold tracking-tight ${
+                          isAssistant
+                            ? "text-indigo-300"
+                            : "text-gray-200"
+                        }`}
+                      >
+                        {t.speaker}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-1.5 h-1.5 text-gray-600" />
+                        <span className="text-[8px] text-gray-500 font-medium">
+                          {t.timestamp}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Message */}
-                  <p
-                    className={`text-sm leading-relaxed pl-11 ${
-                      isAssistant
-                        ? "text-indigo-100/90"
-                        : "text-gray-300"
-                    }`}
-                  >
-                    {t.text}
-                  </p>
+                  {t.noteType && (
+                    <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30">
+                      <Sparkles className="w-1.5 h-1.5 text-indigo-400" />
+                      <span className="text-[6px] uppercase tracking-tighter font-bold text-indigo-300">
+                        {t.noteType.replace("_", " ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
 
-            <div ref={transcriptEndRef} />
-          </>
-        )}
+                {/* Content */}
+                <p className={`text-[10px] leading-relaxed ${
+                  isAssistant ? "text-indigo-100/90 font-medium" : "text-gray-300"
+                }`}>
+                  {t.text}
+                </p>
+              </motion.div>
+            );
+          })}
+              <div ref={transcriptEndRef} />
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* FOOTER INFO */}
+      <div className="px-3 md:px-6 py-2 md:py-3 border-t border-white/10 bg-black/20">
+        <div className="flex items-center justify-between opacity-50">
+          <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            Real-time Sync
+          </p>
+          <div className="flex gap-1.5 md:gap-2">
+             <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-indigo-500" />
+             <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-indigo-500/50" />
+             <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-indigo-500/20" />
+          </div>
+        </div>
       </div>
     </div>
   );
