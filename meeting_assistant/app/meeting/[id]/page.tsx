@@ -3,8 +3,8 @@
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect } from "react";
-import MeetingRoom from "@/app/components/meeting-room";
-import StreamProvider from "@/app/components/stream-provider";
+import MeetingRoom from "../../components/meeting-room";
+import StreamProvider from "../../components/stream-provider";
 import { Loader2 } from "lucide-react";
 
 export default function LiveMeetingPage() {

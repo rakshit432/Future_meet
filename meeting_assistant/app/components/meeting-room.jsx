@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
-import { TranscriptPanel } from "@/app/components/transcript";
+import { TranscriptPanel } from "./transcript";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
 function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setLayout, onSaveMeeting, isSaving, isSaved, saveError }) {

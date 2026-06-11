@@ -2,7 +2,7 @@
 
 import { StreamVideo } from "@stream-io/video-react-sdk";
 import { Chat } from "stream-chat-react";
-import { useStreamClients } from "@/app/hooks/use-stream-clients";
+import { useStreamClients } from "../hooks/use-stream-clients";
 
 const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 
