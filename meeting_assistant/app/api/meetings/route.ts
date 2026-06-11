@@ -11,8 +11,8 @@ export async function GET() {
     const session = await auth();
     console.log("Session retrieved:", session);
     
-    if (!session || !session.user) {
-      console.log("GET /api/meetings: Unauthorized - no session or user");
+    if (!session || !session.user || !session.user.id) {
+      console.log("GET /api/meetings: Unauthorized - no session or user ID");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,8 +50,8 @@ export async function POST(request: Request) {
     const session = await auth();
     console.log("Step 1: Session retrieved:", session);
     
-    if (!session || !session.user) {
-      console.log("POST /api/meetings: Unauthorized - no session or user");
+    if (!session || !session.user || !session.user.id) {
+      console.log("POST /api/meetings: Unauthorized - no session or user ID");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
