@@ -1,3 +1,7 @@
+import sys
+# Disable aiodns on Windows to prevent DNS resolution issues with virtual adapters in aiohttp
+sys.modules['aiodns'] = None
+
 import asyncio
 import os
 import logging
@@ -25,7 +29,7 @@ from vision_agents.core.llm.events import (
 )
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
 
 # Load environment variables
