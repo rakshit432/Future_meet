@@ -43,20 +43,20 @@ function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setL
     <motion.div 
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl"
+      className="flex items-center justify-between px-3 md:px-6 py-2 md:py-4 rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl"
     >
-      <div className="flex items-center gap-2 md:gap-4">
-        <div className="w-8 h-8 md:w-10 h-10 md:rounded-xl rounded-lg bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+      <div className="flex items-center gap-2 md:gap-4 min-w-0">
+        <div className="w-8 h-8 md:w-10 h-10 md:rounded-xl rounded-lg bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
           <VideoIcon className="w-4 h-4 md:w-5 h-5 text-white" />
         </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm md:text-base font-bold tracking-tight text-white">
-              <span className="hidden sm:inline">Room: </span><span className="text-indigo-400 font-mono uppercase text-xs sm:text-sm">{callId}</span>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-xs md:text-base font-bold tracking-tight text-white truncate max-w-[80px] sm:max-w-none">
+              <span className="hidden sm:inline">Room: </span><span className="text-indigo-400 font-mono uppercase text-[10px] sm:text-sm">{callId}</span>
             </h1>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              <CircleDot className="w-1.5 h-1.5 md:w-2.5 md:h-2.5 text-emerald-400 fill-emerald-400 animate-pulse" />
-              <span className="text-[8px] md:text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Live</span>
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex-shrink-0">
+              <CircleDot className="w-1 h-1 md:w-1.5 md:h-1.5 text-emerald-400 fill-emerald-400 animate-pulse" />
+              <span className="text-[7px] md:text-[9px] font-bold text-emerald-400 uppercase tracking-widest">Live</span>
             </div>
           </div>
           <p className="hidden md:block text-[10px] md:text-[11px] text-gray-400 flex items-center gap-1.5 mt-0.5">
@@ -66,7 +66,7 @@ function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setL
         </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-3">
+      <div className="flex items-center gap-1.5 md:gap-3">
         {/* Layout Switcher */}
         <div className="hidden md:flex items-center p-1 bg-white/5 border border-white/10 rounded-xl">
           <button
@@ -96,10 +96,11 @@ function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setL
         {/* Header Transcript Toggle */}
         <button 
           onClick={() => setShowTranscript(!showTranscript)}
-          className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+          title="Toggle Transcript"
         >
           <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="text-xs font-semibold text-gray-200">Transcript</span>
+          <span className="hidden sm:inline text-xs font-semibold text-gray-200">Transcript</span>
         </button>
 
         {/* Save Meeting Button */}
@@ -107,7 +108,8 @@ function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setL
           <button 
             onClick={onSaveMeeting}
             disabled={isSaving || isSaved}
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+            title={isSaved ? 'Meeting Saved' : 'Save Meeting'}
           >
             {isSaving ? (
               <Save className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
@@ -116,23 +118,23 @@ function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setL
             ) : (
               <Save className="w-3.5 h-3.5 text-emerald-400" />
             )}
-            <span className="text-xs font-semibold text-gray-200">
+            <span className="hidden sm:inline text-xs font-semibold text-gray-200">
               {isSaved ? 'Saved' : 'Save'}
             </span>
           </button>
         )}
         
-        <div className="hidden md:flex items-center gap-3 px-2.5 md:px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
-          <Users className="w-3 h-3 md:w-3.5 h-3.5 text-gray-400" />
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-[10px] font-semibold text-gray-300">
-                {participantCount} Participant{participantCount !== 1 ? 's' : ''}
-              </span>
-            </div>
+        {/* Participant Count */}
+        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-white/5 border border-white/10 text-gray-400">
+          <Users className="w-3.5 h-3.5 text-gray-400" />
+          <div className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[10px] font-semibold text-gray-300">
+              {participantCount}<span className="hidden sm:inline"> Participant{participantCount !== 1 ? 's' : ''}</span>
+            </span>
           </div>
         </div>
+
         <button className="p-1.5 md:p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
           <Settings className="w-3.5 h-3.5 md:w-4 h-4 text-gray-400" />
         </button>
@@ -395,7 +397,7 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
                 animate={{ y: 0, opacity: 1 }}
                 className="flex justify-center pb-1"
               >
-                <div className="px-4 md:px-8 py-2.5 md:py-3 rounded-[2rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-2">
+                <div className="px-4 md:px-8 py-2 md:py-2.5 rounded-[2rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-2">
                   <CallControls onLeave={handleLeaveClick} />
                 </div>
               </motion.div>
@@ -431,39 +433,51 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
             </AnimatePresence>
           </div>
 
-          {/* MOBILE TRANSCRIPT TOGGLE & PANEL */}
-          <div className="lg:hidden">
-            <button
-              onClick={() => setMobileTranscriptOpen(!mobileTranscriptOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl"
-            >
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-indigo-400" />
-                <span className="text-xs font-bold text-gray-200 uppercase tracking-wide">Live Transcript</span>
-              </div>
-              {mobileTranscriptOpen ? (
-                <ChevronUp className="w-4 h-4 text-gray-400" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              )}
-            </button>
-            
-            <AnimatePresence>
-              {mobileTranscriptOpen && (
+          {/* MOBILE TRANSCRIPT DRAWER & OVERLAY */}
+          <AnimatePresence>
+            {showTranscript && (
+              <>
+                {/* Backdrop overlay */}
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: '250px', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="mt-2 overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowTranscript(false)}
+                  className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-xs z-40"
+                />
+                
+                {/* Bottom slide-up drawer */}
+                <motion.div
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                  className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-[#0F1115]/95 backdrop-blur-2xl rounded-t-3xl border-t border-white/10 shadow-2xl flex flex-col h-[65vh] overflow-hidden"
                 >
-                  <div className="h-full overflow-hidden">
+                  {/* Drawer Header */}
+                  <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between bg-white/5 flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-indigo-400" />
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-gray-200">
+                        Live Transcript
+                      </h2>
+                    </div>
+                    <button 
+                      onClick={() => setShowTranscript(false)} 
+                      className="p-1.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10"
+                    >
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {/* Drawer Transcript Content */}
+                  <div className="flex-1 overflow-hidden">
                     <TranscriptPanel onTranscriptUpdate={setTranscript} />
                   </div>
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </StreamCall>
     </StreamTheme>

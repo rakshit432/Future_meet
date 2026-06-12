@@ -52,3 +52,23 @@ body {
   border-radius: 1.5rem !important;
   overflow: hidden !important;
 }
+
+/* Responsive Mobile Layout Adjustments */
+@media (max-width: 640px) {
+  /* Make standard call controls compact and snug on phone screens */
+  .str-video__call-controls {
+    gap: 0.35rem !important;
+    padding: 0.15rem !important;
+    flex-wrap: nowrap !important;
+  }
+  .str-video__call-controls button {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    min-width: 2.25rem !important;
+    padding: 0 !important;
+  }
+  .str-video__call-controls button svg {
+    width: 1.1rem !important;
+    height: 1.1rem !important;
+  }
+}
