@@ -19,6 +19,16 @@ export default function LiveMeetingPage() {
     }
   }, [status, router]);
 
+  useEffect(() => {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (backendUrl) {
+      console.log("Pinging backend to wake up the agent...");
+      fetch(backendUrl).catch((err) => {
+        console.warn("Failed to ping backend agent:", err);
+      });
+    }
+  }, []);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
