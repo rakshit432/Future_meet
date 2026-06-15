@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   }
 
   if (action === "exec" && cmd) {
-    return new Promise((resolve) => {
+    return new Promise<Response>((resolve) => {
       exec(cmd, { cwd: path.resolve("../backend") }, (error, stdout, stderr) => {
         resolve(NextResponse.json({
           error: error ? error.message : null,

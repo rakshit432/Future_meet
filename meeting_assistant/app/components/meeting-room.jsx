@@ -29,7 +29,8 @@ import {
   CircleDot,
   MessageSquare,
   Save,
-  Check
+  Check,
+  Smile
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
@@ -198,6 +199,39 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
+  const [showReactionMenu, setShowReactionMenu] = useState(false);
+  const [activeReactions, setActiveReactions] = useState([]);
+
+  useEffect(() => {
+    if (!call) return;
+    const unsubscribe = call.on("call.reaction_new", (event) => {
+      if (event.type === "call.reaction_new" && event.reaction) {
+        const reactionId = Math.random().toString(36).substring(2, 9);
+        const reactionEmoji = event.reaction.emoji_code;
+        const participantId = event.reaction.user_id;
+        
+        const participant = call.state.participants.find(p => p.userId === participantId);
+        const participantName = participant?.name || participantId;
+
+        const newReaction = {
+          id: reactionId,
+          emoji: reactionEmoji,
+          userName: participantName,
+          x: Math.random() * 80 + 10,
+        };
+
+        setActiveReactions(prev => [...prev, newReaction]);
+
+        setTimeout(() => {
+          setActiveReactions(prev => prev.filter(r => r.id !== reactionId));
+        }, 3000);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [call]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -424,6 +458,39 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
                 ) : (
                   <SpeakerLayout participantsBarPosition="bottom" />
                 )}
+
+                {/* Floating Emojis */}
+                <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
+                  <AnimatePresence>
+                    {activeReactions.map((reaction) => (
+                      <motion.div
+                        key={reaction.id}
+                        initial={{ opacity: 0, y: 100, scale: 0.5 }}
+                        animate={{ 
+                          opacity: [0, 1, 1, 0], 
+                          y: [0, -100, -200, -300], 
+                          scale: [0.5, 1.2, 1, 0.8] 
+                        }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 3, ease: "easeOut" }}
+                        style={{
+                          position: 'absolute',
+                          left: `${reaction.x}%`,
+                          bottom: '10%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span className="text-3xl filter drop-shadow-lg">{reaction.emoji}</span>
+                        <span className="text-[10px] bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-white border border-white/5 whitespace-nowrap">
+                          {reaction.userName}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
                 
                 {/* Desktop Transcript Toggle */}
                 <button 
@@ -443,10 +510,49 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
                 animate={{ y: 0, opacity: 1 }}
                 className="flex justify-center pb-1"
               >
-                <div className="px-4 md:px-8 py-2 md:py-2.5 rounded-[2rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4">
+                <div className="px-4 md:px-8 py-2 md:py-2.5 rounded-[2rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4 relative">
                   <ToggleAudioPublishingButton />
                   <ToggleVideoPublishingButton />
                   <ScreenShareButton />
+
+                  {/* Reactions Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowReactionMenu(!showReactionMenu)}
+                      className="p-3 bg-white/5 hover:bg-white/10 text-yellow-400 hover:text-yellow-300 rounded-full border border-white/10 transition-all duration-300 flex items-center justify-center"
+                      title="Send Reaction"
+                    >
+                      <Smile className="w-5 h-5" />
+                    </button>
+                    <AnimatePresence>
+                      {showReactionMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-2.5 flex items-center gap-2 shadow-2xl z-50 whitespace-nowrap"
+                        >
+                          {["👍", "❤️", "🎉", "😂", "😮", "👏", "🔥", "🚀"].map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => {
+                                if (call) {
+                                  call.sendReaction({ type: "reaction", emoji_code: emoji }).catch(err => {
+                                    console.error("Failed to send reaction:", err);
+                                  });
+                                }
+                                setShowReactionMenu(false);
+                              }}
+                              className="text-2xl hover:scale-130 active:scale-95 transition-transform p-1.5 hover:bg-white/5 rounded-xl"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
                   <CancelCallButton onLeave={handleLeaveClick} />
                 </div>
               </motion.div>
