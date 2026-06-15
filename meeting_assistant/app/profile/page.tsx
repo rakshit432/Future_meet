@@ -11,7 +11,10 @@ import {
   Sparkles,
   Loader2,
   FileText,
-  X
+  X,
+  Copy,
+  Download,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -21,6 +24,68 @@ export default function ProfilePage() {
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMeeting, setSelectedMeeting] = useState<any | null>(null);
+  const [summarizingId, setSummarizingId] = useState<string | null>(null);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerateSummary = async (meetingId: string) => {
+    setSummarizingId(meetingId);
+    setSummarizeError(null);
+    try {
+      const res = await fetch(`/api/meetings/${meetingId}/summarize`, {
+        method: "POST"
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to generate summary");
+      }
+
+      const data = await res.json();
+      
+      setSelectedMeeting((prev: any) => {
+        if (prev && prev.id === meetingId) {
+          return {
+            ...prev,
+            summary: data.summary,
+            keyPoints: JSON.stringify(data.keyPoints)
+          };
+        }
+        return prev;
+      });
+
+      setMeetings((prevMeetings) =>
+        prevMeetings.map((m) =>
+          m.id === meetingId
+            ? { ...m, summary: data.summary, keyPoints: JSON.stringify(data.keyPoints) }
+            : m
+        )
+      );
+
+    } catch (err: any) {
+      console.error(err);
+      setSummarizeError(err.message || "An error occurred while summarizing.");
+    } finally {
+      setSummarizingId(null);
+    }
+  };
+
+  const handleCopyTranscript = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExportTranscript = (meeting: any) => {
+    const element = document.createElement("a");
+    const file = new Blob([meeting.transcript], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    const dateStr = new Date(meeting.createdAt).toISOString().split('T')[0];
+    element.download = `${meeting.title.replace(/\s+/g, '_') || 'Meeting'}_${dateStr}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -260,56 +325,118 @@ export default function ProfilePage() {
 
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-                {/* Summary */}
-                {selectedMeeting.summary && (
-                  <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-2xl p-5 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-yellow-500/5 rounded-full blur-[40px] pointer-events-none" />
-                    <div className="flex items-center gap-2 mb-3 text-yellow-400">
-                      <Sparkles className="w-4 h-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">
-                        AI Summary
-                      </span>
+                {/* On-Demand AI Summary Action / Result */}
+                {selectedMeeting.summary ? (
+                  <div className="space-y-6">
+                    {/* Summary */}
+                    <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-2xl p-5 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-yellow-500/5 rounded-full blur-[40px] pointer-events-none" />
+                      <div className="flex items-center gap-2 mb-3 text-yellow-400">
+                        <Sparkles className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                          AI Summary
+                        </span>
+                      </div>
+                      <p className="text-gray-300 text-sm leading-relaxed font-sans">
+                        {selectedMeeting.summary}
+                      </p>
                     </div>
-                    <p className="text-gray-300 text-sm leading-relaxed font-sans">
-                      {selectedMeeting.summary}
-                    </p>
-                  </div>
-                )}
 
-                {/* Key Points */}
-                {JSON.parse(selectedMeeting.keyPoints || "[]").length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 text-indigo-400">
-                      <FileText className="w-4 h-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">
-                        Key Points & Actions
-                      </span>
+                    {/* Key Points */}
+                    {JSON.parse(selectedMeeting.keyPoints || "[]").length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3 text-indigo-400">
+                          <FileText className="w-4 h-4" />
+                          <span className="text-xs font-bold uppercase tracking-wider">
+                            Key Points & Actions
+                          </span>
+                        </div>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {JSON.parse(selectedMeeting.keyPoints).map((point: string, i: number) => (
+                            <motion.li
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.05 }}
+                              key={i}
+                              className="flex items-start gap-3 p-3 bg-white/5 border border-white/5 rounded-xl text-gray-300 text-sm leading-relaxed"
+                            >
+                              <span className="w-2 h-2 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />
+                              <span>{point}</span>
+                            </motion.li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center space-y-4">
+                    <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-full w-fit mx-auto">
+                      <Sparkles className="w-6 h-6 animate-pulse" />
                     </div>
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {JSON.parse(selectedMeeting.keyPoints).map((point: string, i: number) => (
-                        <motion.li
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          key={i}
-                          className="flex items-start gap-3 p-3 bg-white/5 border border-white/5 rounded-xl text-gray-300 text-sm leading-relaxed"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />
-                          <span>{point}</span>
-                        </motion.li>
-                      ))}
-                    </ul>
+                    <div className="max-w-md mx-auto">
+                      <h3 className="text-lg font-semibold text-white mb-1">Generate AI Summary</h3>
+                      <p className="text-gray-400 text-sm mb-4">
+                        Use Gemini 1.5 Flash to automatically interpret this meeting's transcript, extract key points, action items, and create an executive summary.
+                      </p>
+                      {summarizeError && (
+                        <p className="text-red-400 text-xs mb-3">{summarizeError}</p>
+                      )}
+                      <button
+                        onClick={() => handleGenerateSummary(selectedMeeting.id)}
+                        disabled={summarizingId === selectedMeeting.id}
+                        className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 disabled:from-indigo-500/50 disabled:to-cyan-500/50 text-white font-medium text-sm rounded-xl transition-all shadow-lg hover:shadow-indigo-500/20 flex items-center justify-center gap-2 mx-auto disabled:cursor-not-allowed"
+                      >
+                        {summarizingId === selectedMeeting.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Analyzing with Gemini...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            <span>Generate AI Summary</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 {/* Full Transcript */}
                 {selectedMeeting.transcript && (
                   <div>
-                    <div className="flex items-center gap-2 mb-3 text-cyan-400">
-                      <MessageSquare className="w-4 h-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">
-                        Meeting Transcript
-                      </span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 text-cyan-400">
+                        <MessageSquare className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                          Meeting Transcript
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleCopyTranscript(selectedMeeting.transcript)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg border border-white/5 transition-all text-xs font-medium"
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-green-400" />
+                              <span className="text-green-400">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleExportTranscript(selectedMeeting)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg border border-white/5 transition-all text-xs font-medium"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Export .txt</span>
+                        </button>
+                      </div>
                     </div>
                     <div className="bg-black/40 border border-white/5 rounded-2xl p-5 max-h-[300px] overflow-y-auto font-mono text-xs text-gray-400 space-y-3 custom-scrollbar">
                       {selectedMeeting.transcript.split("\n").map((line: string, i: number) => {

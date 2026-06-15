@@ -285,22 +285,6 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
     setIsSaving(true);
     setSaveError(null);
     try {
-      // Generate better key points from transcript
-      const keyPoints = transcript
-        .map(t => t.text)
-        .filter(t => {
-          const hasActionWords = /action|todo|need|should|must|important|key|decided|agreed|next step/i.test(t);
-          const isLongEnough = t.length > 30;
-          const isNotDuplicate = !t.toLowerCase().includes("i don't know") && !t.toLowerCase().includes("wait");
-          return hasActionWords || (isLongEnough && isNotDuplicate);
-        })
-        .slice(-15); // Keep up to 15 key points
-
-      // Generate a simple summary
-      const summary = transcript.length > 0 
-        ? `This meeting covered ${transcript.length} topics with participants speaking. Key points included ${keyPoints.slice(0,3).map(kp => kp.substring(0, 60)).join(", ")}...` 
-        : "Meeting transcript available.";
-
       const transcriptText = transcript.map(t => `${t.speaker || 'Unknown'} [${t.timestamp}]: ${t.text}`).join('\n');
 
       const response = await fetch('/api/meetings', {
@@ -309,9 +293,7 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
         body: JSON.stringify({
           meetingId: normalizedCallId,
           title: `Meeting on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
-          keyPoints,
-          transcript: transcriptText,
-          summary
+          transcript: transcriptText
         })
       });
 
