@@ -20,70 +20,138 @@ export function TranscriptPanel({ onTranscriptUpdate }) {
   }, [transcripts, onTranscriptUpdate]);
 
   useEffect(() => {
-    if (!call) return;
+    if (!call || !client || !client.userID) return;
 
-    const callId =
-      call?.id || call?.callId || process.env.NEXT_PUBLIC_CALL_ID;
+    const callId = call?.id || call?.callId || process.env.NEXT_PUBLIC_CALL_ID;
     if (!callId) return;
 
     const channel = client.channel("messaging", callId);
     let cancelled = false;
+    let retryTimer = null;
 
-    const watchChannel = async () => {
+    // Helper: turn a raw Stream message into our transcript shape
+    const msgToTranscript = (m) => ({
+      id: m.id,
+      text: m.text,
+      speaker: m.custom?.speaker || m.user?.name || "Assistant",
+      timestamp: new Date(m.created_at).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      noteType: m.custom?.note_type,
+    });
+
+    // Watch channel with exponential-backoff retry.
+    // IMPORTANT: The bot creates the channel server-side without adding the user as
+    // a member. Stream "messaging" channels require membership to receive events.
+    // Fix: try to create the channel with ourselves as a member first (idempotent).
+    // The backend also calls add_members() when participants join — so eventually one
+    // of these two paths will grant membership and watch() will succeed.
+    const watchChannel = async (attempt = 0) => {
       try {
-        await channel.watch();
+        // Step 1: Ensure we are a member by creating the channel with ourselves.
+        // If the channel already exists, this will fail — that is fine, we catch it.
+        try {
+          const memberChannel = client.channel("messaging", callId, {
+            created_by_id: client.userID,
+            members: [client.userID],
+          });
+          await memberChannel.create();
+          console.log("[TranscriptPanel] Channel created/ensured with user as member");
+        } catch (_) {
+          // Channel already exists (created by the bot) — rely on backend add_members
+        }
+
+        // Step 2: Watch the channel (subscribe to real-time events)
+        const state = await channel.watch();
         if (cancelled) return;
-      } catch {
-        return;
+
+        console.log("[TranscriptPanel] Channel watch successful. Raw messages:", state?.messages);
+
+        // Back-fill any messages that were already in the channel
+        const existing = (state?.messages ?? [])
+          .filter((m) => m.text)
+          .map(msgToTranscript);
+
+        if (existing.length > 0) {
+          console.log("[TranscriptPanel] Backfilled transcripts:", existing);
+          setTranscripts(existing);
+        }
+
+        console.log("[TranscriptPanel] Channel ready, watching for new messages");
+      } catch (err) {
+        if (cancelled) return;
+        // Exponential backoff: 2 s, 4 s, 8 s … capped at 30 s
+        const delay = Math.min(2000 * 2 ** attempt, 30000);
+        console.log(
+          `[TranscriptPanel] channel.watch() failed (attempt ${attempt + 1}), retrying in ${delay / 1000}s…`,
+          err?.message
+        );
+        retryTimer = setTimeout(() => watchChannel(attempt + 1), delay);
       }
     };
 
     watchChannel();
 
+    // Stream native closed-caption events (when Stream's own transcription fires)
     const handleClosedCaption = (event) => {
-      if (!event.closed_caption) return;
-
+      if (!event || !event.text) return;
       setTranscripts((prev) => [
         ...prev,
         {
-          id: Math.random().toString(36).substr(2, 9),
-          text: event.closed_caption.text,
+          id: event.id || Math.random().toString(36).substr(2, 9),
+          text: event.text,
           speaker:
-            event.closed_caption.user?.name ||
-            event.closed_caption.user?.id ||
-            "Unknown",
+            event.user?.name || event.user?.id || event.speaker_id || "Unknown",
           timestamp: new Date(
-            event.closed_caption.start_time
-          ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            event.start_time || Date.now()
+          ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
     };
 
+    const upsertTranscript = (message) => {
+      setTranscripts((prev) => {
+        const index = prev.findIndex((t) => t.id === message.id);
+        const item = msgToTranscript(message);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = item;
+          return updated;
+        }
+        return [...prev, item];
+      });
+    };
+
+    // Chat channel messages (transcripts + AI notes + human messages)
     const handleNewMessage = (event) => {
       const message = event.message;
-      if (message?.user?.id !== "meeting-assistant-bot") return;
-
-      setTranscripts((prev) => [
-        ...prev,
-        {
-          id: message.id,
-          text: message.text,
-          speaker: message.custom?.speaker || message.user?.name || "Assistant",
-          timestamp: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          noteType: message.custom?.note_type,
-        },
-      ]);
+      console.log("[TranscriptPanel] New message event received:", event);
+      if (!message?.text) return;
+      upsertTranscript(message);
     };
 
-    call.on("call.closed_caption", handleClosedCaption);
+    const handleUpdatedMessage = (event) => {
+      const message = event.message;
+      console.log("[TranscriptPanel] Updated message event received:", event);
+      if (!message?.text) return;
+      upsertTranscript(message);
+    };
+
+    // Disabled Stream native closed-caption listener to avoid duplicates and improve accuracy.
+    // Transcripts are now fully generated on the backend via Gemini and pushed to the channel.
+    // call.on("call.closed_caption", handleClosedCaption);
     channel.on("message.new", handleNewMessage);
+    channel.on("message.updated", handleUpdatedMessage);
 
     return () => {
       cancelled = true;
-      call.off("call.closed_caption", handleClosedCaption);
+      clearTimeout(retryTimer);
+      // call.off("call.closed_caption", handleClosedCaption);
       channel.off("message.new", handleNewMessage);
+      channel.off("message.updated", handleUpdatedMessage);
     };
-  }, [call]);
+  }, [call, client, client?.userID]);
 
   return (
     <div className="h-full flex flex-col bg-transparent text-gray-100">

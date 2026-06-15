@@ -6,9 +6,12 @@ import {
   useStreamVideoClient,
   SpeakerLayout,
   PaginatedGridLayout,
-  CallControls,
   StreamTheme,
   useCallStateHooks,
+  ToggleAudioPublishingButton,
+  ToggleVideoPublishingButton,
+  ScreenShareButton,
+  CancelCallButton,
 } from "@stream-io/video-react-sdk";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -32,6 +35,51 @@ import { useSession } from "next-auth/react";
 
 import { TranscriptPanel } from "./transcript";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
+
+function AgentAutoJoiner({ callId }) {
+  const { useParticipants } = useCallStateHooks();
+  const participants = useParticipants();
+  const { data: session } = useSession();
+  const lastPingRef = useRef(0);
+  const mountTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!callId || !session?.user) return;
+    
+    // Only start checking 10 seconds after mounting to allow parent's initial ping to connect the bot
+    if (Date.now() - mountTimeRef.current < 10000) return;
+    
+    // Check if the meeting-assistant-bot is in the participant list
+    const isBotPresent = participants.some(
+      (p) => p.userId === "meeting-assistant-bot" || p.user?.id === "meeting-assistant-bot"
+    );
+    
+    if (!isBotPresent) {
+      const now = Date.now();
+      // Rate-limit pings to at most once every 10 seconds to avoid spamming the backend
+      if (now - lastPingRef.current > 10000) {
+        lastPingRef.current = now;
+        
+        let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+        if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+          backendUrl = "http://127.0.0.1:10000";
+        }
+        
+        const userName = encodeURIComponent(
+          session.user.name || session.user.email || session.user.id || ""
+        );
+        const uid = encodeURIComponent(session.user.id || "");
+        
+        console.log(`[AutoJoiner] Bot is missing from call. Pinging backend to join call ${callId}...`);
+        fetch(`${backendUrl}/join?call_id=${callId}&user_name=${userName}&user_id=${uid}`).catch((err) => {
+          console.warn("[AutoJoiner] Failed to ping backend agent:", err);
+        });
+      }
+    }
+  }, [participants, callId, session]);
+
+  return null;
+}
 
 function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setLayout, onSaveMeeting, isSaving, isSaved, saveError }) {
   const { useParticipantCount, useParticipants } = useCallStateHooks();
@@ -134,10 +182,6 @@ function MeetingHeader({ callId, showTranscript, setShowTranscript, layout, setL
             </span>
           </div>
         </div>
-
-        <button className="p-1.5 md:p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-          <Settings className="w-3.5 h-3.5 md:w-4 h-4 text-gray-400" />
-        </button>
       </div>
     </motion.div>
   );
@@ -147,63 +191,74 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
   const client = useStreamVideoClient();
   const [call, setCall] = useState(null);
   const [error, setError] = useState(null);
-  const [showTranscript, setShowTranscript] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(true);
   const [layout, setLayout] = useState("grid"); // "grid" or "speaker"
   const [mobileTranscriptOpen, setMobileTranscriptOpen] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isLargeScreen, setIsLargeScreen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const normalizedCallId =
     callId && callId !== "undefined"
       ? callId
-      : process.env.NEXT_PUBLIC_CALL_ID || "default_meeting_room";
+      : null;
 
   const joinedRef = useRef(false);
   const leavingRef = useRef(false);
+  const callRef = useRef(null);  // ref copy so cleanup can access latest call
   const callType = "default";
 
   useEffect(() => {
-    if (!client) return;
-    if (joinedRef.current) return;
-    joinedRef.current = true;
+    if (!client || !normalizedCallId) return;
+
+    let isMounted = true;
+    let myCall = null;
 
     const init = async () => {
       try {
-        const myCall = client.call(callType, normalizedCallId);
+        myCall = client.call(callType, normalizedCallId);
 
         await myCall.join({
           create: true,
         });
-        
-        // Start closed captions
-        try {
-          await myCall.startClosedCaptions({ language: "en" });
-        } catch (e) {
-          console.warn("Failed to start closed captions:", e);
-        }
-        
-        // Start transcription
-        try {
-          await myCall.startTranscription();
-        } catch (e) {
-          console.warn("Failed to start transcription:", e);
+
+        if (!isMounted) {
+          myCall.leave().catch(() => {});
+          return;
         }
 
+        // Best-effort: start Stream's native closed captions (non-fatal)
+        myCall.startClosedCaptions({ language: "en" }).catch(() => {});
+
         myCall.on("call.session_ended", () => onLeave?.());
+        callRef.current = myCall;
         setCall(myCall);
       } catch (err) {
-        setError(err.message);
+        if (isMounted) {
+          setError(err.message);
+        }
       }
     };
 
     init();
 
     return () => {
-      if (call && !leavingRef.current) {
-        leavingRef.current = true;
-        call.stopClosedCaptions().catch(() => {});
-        call.leave().catch(() => {});
+      isMounted = false;
+      if (myCall) {
+        myCall.leave().catch(() => {});
+      } else if (callRef.current) {
+        callRef.current.leave().catch(() => {});
       }
     };
   }, [client, normalizedCallId, userId]);
@@ -211,11 +266,13 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
   const handleLeaveClick = async () => {
     if (leavingRef.current) return onLeave?.();
     leavingRef.current = true;
-
     try {
-      if (call) {
-        await call.stopClosedCaptions().catch(() => {});
-        await call.leave().catch(() => {});
+      const c = callRef.current;
+      if (c) {
+        // stop_closed_captions may fail if captions weren't started — ignore
+        await c.stopClosedCaptions().catch(() => {});
+        // leave() throws if already left — ignore
+        await c.leave().catch(() => {});
       }
     } finally {
       onLeave?.();
@@ -307,22 +364,28 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
 
   if (!call) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white p-4">
-        <div className="relative">
-          <motion.div 
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="h-16 w-16 md:h-20 md:w-20 rounded-full border-2 border-white/5 border-t-indigo-500"
-          />
-          <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full" />
+      <div className="min-h-screen bg-[#020203] text-white flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Glow backdrop */}
+        <div className="absolute w-[300px] h-[300px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className="relative flex items-center justify-center">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              className="w-16 h-16 rounded-full border border-white/[0.06] border-t-indigo-500 border-r-indigo-500"
+            />
+            <div className="absolute flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" />
+            </div>
+          </div>
+          <div className="text-center space-y-1">
+            <h3 className="text-sm font-bold tracking-widest text-gray-200 uppercase font-sans">Synchronizing Call</h3>
+            <p className="text-xs text-gray-500 font-medium font-sans">Establishing connection with Stream servers...</p>
+          </div>
         </div>
-        <motion.p 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 md:mt-8 text-sm md:text-base font-medium text-gray-400 tracking-widest uppercase"
-        >
-          Syncing with server…
-        </motion.p>
       </div>
     );
   }
@@ -330,6 +393,7 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
   return (
     <StreamTheme>
       <StreamCall call={call}>
+        <AgentAutoJoiner callId={normalizedCallId} />
         <div className="h-screen bg-[#050505] text-gray-100 relative overflow-hidden flex flex-col p-3 md:p-4 lg:p-6 gap-3 md:gap-4">
           {/* Background Glows */}
           <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
@@ -397,15 +461,18 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
                 animate={{ y: 0, opacity: 1 }}
                 className="flex justify-center pb-1"
               >
-                <div className="px-4 md:px-8 py-2 md:py-2.5 rounded-[2rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-2">
-                  <CallControls onLeave={handleLeaveClick} />
+                <div className="px-4 md:px-8 py-2 md:py-2.5 rounded-[2rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4">
+                  <ToggleAudioPublishingButton />
+                  <ToggleVideoPublishingButton />
+                  <ScreenShareButton />
+                  <CancelCallButton onLeave={handleLeaveClick} />
                 </div>
               </motion.div>
             </div>
 
             {/* DESKTOP TRANSCRIPT SIDEBAR */}
             <AnimatePresence>
-              {showTranscript && (
+              {showTranscript && isLargeScreen && (
                 <motion.div 
                   initial={{ x: 50, opacity: 0, width: 0 }}
                   animate={{ x: 0, opacity: 1, width: '100%', maxWidth: '320px' }}
@@ -435,7 +502,7 @@ export default function MeetingRoom({ callId, onLeave, userId }) {
 
           {/* MOBILE TRANSCRIPT DRAWER & OVERLAY */}
           <AnimatePresence>
-            {showTranscript && (
+            {showTranscript && !isLargeScreen && (
               <>
                 {/* Backdrop overlay */}
                 <motion.div

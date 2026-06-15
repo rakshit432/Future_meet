@@ -10,6 +10,7 @@ export function useStreamClients({ apiKey, user, token: initialToken, serverTime
   const tokenRef = useRef(initialToken);
   const serverTimeOffsetRef = useRef(initialServerTime ? initialServerTime - Math.floor(Date.now() / 1000) : 0);
   const iatLeewayRef = useRef(initialIatLeeway);
+  const effectIdRef = useRef(0);
 
   useEffect(() => {
     tokenRef.current = initialToken;
@@ -28,6 +29,7 @@ export function useStreamClients({ apiKey, user, token: initialToken, serverTime
   useEffect(() => {
     if (!user || !apiKey) return;
 
+    const currentEffectId = ++effectIdRef.current;
     let isMounted = true;
 
     const decodeJwt = (jwt) => {
@@ -50,7 +52,7 @@ export function useStreamClients({ apiKey, user, token: initialToken, serverTime
       const res = await fetch("/api/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: user.id, userName: user.name, userImage: user.image }),
       });
       const data = await res.json();
       if (data.token) {
@@ -144,24 +146,26 @@ export function useStreamClients({ apiKey, user, token: initialToken, serverTime
 
     return () => {
       isMounted = false;
-      (async () => {
-        try {
-          if (chatClient) {
-            await chatClient.disconnectUser?.();
-            await chatClient.disconnect?.();
+      if (effectIdRef.current === currentEffectId) {
+        (async () => {
+          try {
+            if (chatClient) {
+              await chatClient.disconnectUser?.();
+              await chatClient.disconnect?.();
+            }
+          } catch (e) {
+            // ignore cleanup errors
           }
-        } catch (e) {
-          // ignore cleanup errors
-        }
 
-        try {
-          if (videoClient) {
-            await videoClient.disconnect?.();
+          try {
+            if (videoClient) {
+              await videoClient.disconnect?.();
+            }
+          } catch (e) {
+            // ignore cleanup errors
           }
-        } catch (e) {
-          // ignore cleanup errors
-        }
-      })();
+        })();
+      }
     };
   }, [apiKey, user]);
 

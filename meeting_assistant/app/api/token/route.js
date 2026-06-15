@@ -5,7 +5,7 @@ const apiSecret = process.env.STREAM_API_SECRET;
 
 export async function POST(request) {
   try {
-    const { userId } = await request.json();
+    const { userId, userName, userImage } = await request.json();
 
     if (!apiKey || !apiSecret) {
       return Response.json(
@@ -16,11 +16,12 @@ export async function POST(request) {
 
     const serverClient = new StreamClient(apiKey, apiSecret);
 
-    // Create/upsert the user first
+    // Upsert the user with their real display name (not just the ID)
     const newUser = {
       id: userId,
       role: "admin",
-      name: userId,
+      name: userName || userId,           // Use real name, fall back to ID
+      image: userImage || undefined,       // Set profile picture if available
     };
     await serverClient.upsertUsers([newUser]);
 

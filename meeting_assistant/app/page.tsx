@@ -1,287 +1,331 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Video, Mic, Shield, Users, ArrowRight, Sparkles, User, LogOut, LogIn, Calendar, Loader2 } from "lucide-react";
+import {
+  Video,
+  Plus,
+  ArrowRight,
+  LogOut,
+  LogIn,
+  Loader2,
+  Hash,
+  Clock,
+  Clipboard,
+  Check,
+  ChevronRight,
+} from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 export default function Home() {
-  const [username, setUsername] = useState("");
-  const [isHovered, setIsHovered] = useState(false);
+  const [roomId, setRoomId] = useState("");
+  const [recentMeetings, setRecentMeetings] = useState([]);
+  const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  const handleJoin = () => {
-    const name = username.trim() === "" ? (session?.user?.name || "Guest") : username.trim();
-    const meetingId = process.env.NEXT_PUBLIC_CALL_ID || "default_meeting_room";
-    router.push(`/meeting/${meetingId}?name=${encodeURIComponent(name)}`);
+  useEffect(() => {
+    if (session) {
+      setIsLoadingMeetings(true);
+      fetch("/api/meetings")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.meetings) setRecentMeetings(data.meetings.slice(0, 5));
+        })
+        .catch(console.error)
+        .finally(() => setIsLoadingMeetings(false));
+    }
+  }, [session]);
+
+  const generateId = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyz";
+    const part = (len) =>
+      Array.from({ length: len }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+      ).join("");
+    return `meet-${part(4)}-${part(4)}`;
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleJoin();
-    }
+  const handleStartNewMeeting = () => {
+    router.push(`/meeting/${generateId()}`);
+  };
+
+  const handleJoinMeeting = () => {
+    if (!roomId.trim()) return;
+    router.push(`/meeting/${roomId.trim()}`);
+  };
+
+  const copyToClipboard = (id) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-        <p className="mt-4 text-gray-500">Loading...</p>
+      <div className="min-h-screen bg-[#080810] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center relative overflow-hidden font-sans">
-      {/* Header with User Info */}
-      <div className="absolute top-4 right-4 md:top-8 md:right-8 z-20">
-        {session ? (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/profile")}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300"
-            >
-              {session.user?.image ? (
-                <img src={session.user.image} alt="Profile" className="w-8 h-8 rounded-full" />
-              ) : (
-                <User className="w-4 h-4" />
-              )}
-              <span className="text-sm font-medium text-gray-300">Profile</span>
-            </button>
-            <button
-              onClick={() => signOut()}
-              className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:text-red-400 transition-all duration-300"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => signIn("google")}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-300"
-          >
-            <LogIn className="w-4 h-4" />
-            <span className="text-sm font-medium text-gray-300">Sign in with Google</span>
-          </button>
-        )}
+    <div className="min-h-screen bg-[#080810] text-white flex flex-col relative overflow-x-hidden">
+
+      {/* Subtle ambient glow */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-indigo-600/8 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-violet-600/6 rounded-full blur-[100px]" />
       </div>
 
-      {/* Dynamic Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        {/* Futuristic Grid */}
-        <div 
-          className="absolute inset-0 opacity-[0.4]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px)
-            `,
-            backgroundSize: '80px 80px',
-            maskImage: 'radial-gradient(circle at 50% 50%, black 40%, transparent 90%)',
-            WebkitMaskImage: 'radial-gradient(circle at 50% 50%, black 40%, transparent 90%)',
-          }}
-        />
-
-        {/* Drifting Nebula Blobs */}
-        <motion.div
-          animate={{
-            scale: [1, 1.25, 1],
-            x: [0, 40, 0],
-            y: [0, -30, 0],
-            rotate: [0, 90, 0],
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-[15%] -left-[15%] w-[70%] md:w-[50%] h-[70%] md:h-[50%] bg-indigo-600/20 rounded-full blur-[130px]"
-        />
-        
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            x: [0, -50, 0],
-            y: [0, 40, 0],
-            rotate: [0, -90, 0],
-          }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute -bottom-[15%] -right-[15%] w-[80%] md:w-[60%] h-[80%] md:h-[60%] bg-cyan-600/15 rounded-full blur-[160px]"
-        />
-
-        <motion.div
-          animate={{
-            scale: [0.7, 1.1, 0.7],
-            x: [0, -20, 0],
-            y: [0, -40, 0],
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-          className="absolute top-[25%] right-[20%] w-[35%] h-[35%] bg-purple-600/10 rounded-full blur-[120px]"
-        />
-
-        {/* Grainy Noise Overlay */}
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] brightness-100 contrast-150" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-6xl px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center py-8 md:py-0">
-        {/* Left Side: Branding & Info */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="space-y-6 md:space-y-8"
-        >
-          <div className="flex items-center gap-3 group">
-            <div className="w-10 h-10 md:w-12 h-12 md:rounded-2xl rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform duration-300">
-              <Video className="w-5 h-5 md:w-6 h-6 text-white" />
-            </div>
-            <h2 className="text-xl md:text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-              FUTURE-MEET
-            </h2>
+      {/* Header */}
+      <header className="relative z-10 w-full px-6 py-5 flex items-center justify-between border-b border-white/[0.06]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Video className="w-4 h-4 text-white" />
           </div>
+          <span className="text-sm font-bold tracking-tight text-white">
+            Future<span className="text-indigo-400">Meet</span>
+          </span>
+        </div>
 
-          <div className="space-y-3 md:space-y-4">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
-              Next-Gen <br />
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400">
-                AI Meetings
-              </span>
-            </h1>
-            <p className="text-base md:text-lg text-gray-400 max-w-md leading-relaxed">
-              Experience crystalline audio and real-time AI transcription in a
-              seamless, modern workspace.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
-            {[
-              { icon: Shield, label: "Secure", color: "text-emerald-400" },
-              { icon: Sparkles, label: "AI Powered", color: "text-indigo-400" },
-              { icon: Calendar, label: "Saved Meetings", color: "text-cyan-400" },
-              { icon: Mic, label: "Live Captions", color: "text-amber-400" },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + i * 0.1 }}
-                className="flex items-center gap-2 md:gap-3 p-2.5 md:p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+        <div className="flex items-center gap-3">
+          {session ? (
+            <>
+              <button
+                onClick={() => router.push("/profile")}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-xs font-medium text-gray-300 hover:text-white cursor-pointer"
               >
-                <item.icon className={`w-3.5 h-3.5 md:w-4 h-4 ${item.color}`} />
-                <span className="text-xs md:text-sm font-medium text-gray-300">{item.label}</span>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+                {session.user?.image ? (
+                  <img
+                    src={session.user.image}
+                    alt="Avatar"
+                    className="w-5 h-5 rounded-full"
+                  />
+                ) : null}
+                {session.user?.name?.split(" ")[0] || "Profile"}
+              </button>
+              <button
+                onClick={() => signOut()}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/20 text-gray-400 hover:text-red-400 transition-all cursor-pointer"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => signIn("google")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign in
+            </button>
+          )}
+        </div>
+      </header>
 
-        {/* Right Side: Join Card or Login Prompt */}
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-16">
         {session ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative group w-full"
-          >
-            {/* Card Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 rounded-[2rem] md:rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+          <div className="w-full max-w-lg space-y-6">
 
-            <div className="relative bg-[#0F1115]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 md:p-8 lg:p-10 shadow-2xl">
-              <div className="space-y-5 md:space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                    Live Meeting Ready
+            {/* Hero */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-10"
+            >
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
+                Start or join a{" "}
+                <span className="bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+                  meeting
+                </span>
+              </h1>
+              <p className="text-sm text-gray-400 font-medium">
+                AI-powered transcription and Q&amp;A, live in every room.
+              </p>
+            </motion.div>
+
+            {/* Action Cards */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="space-y-3"
+            >
+              {/* New Meeting Button */}
+              <button
+                onClick={handleStartNewMeeting}
+                className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 transition-all duration-200 shadow-lg shadow-indigo-600/20 group cursor-pointer"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-white" />
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold">Ready to join?</h3>
-                  <p className="text-gray-400 text-sm">
-                    Welcome back, {session.user?.name?.split(' ')[0] || 'User'}!
-                  </p>
-                </div>
-
-                <div className="space-y-3 md:space-y-4">
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 md:pl-4 flex items-center pointer-events-none">
-                      <Users className="h-4 w-4 md:h-5 md:w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
-                    </div>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={session.user?.name || "Display name"}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 md:py-4 pl-10 md:pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-300 text-sm md:text-base"
-                    />
-                  </div>
-
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onHoverStart={() => setIsHovered(true)}
-                    onHoverEnd={() => setIsHovered(false)}
-                    onClick={handleJoin}
-                    className="w-full group relative overflow-hidden bg-white text-black font-bold py-3 md:py-4 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-                  >
-                    <span className="relative z-10">Join Now</span>
-                    <ArrowRight className={`w-4 h-4 md:w-5 md:h-5 relative z-10 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    {isHovered && (
-                      <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-cyan-500 flex items-center justify-center text-white">
-                        Join Now <ArrowRight className="w-4 h-4 md:w-5 md:h-5 translate-x-1" />
-                      </span>
-                    )}
-                  </motion.button>
-                </div>
-
-                <div className="pt-3 md:pt-4 flex items-center justify-center gap-4 md:gap-6 text-gray-500">
-                  <div className="flex items-center gap-1.5">
-                    <Mic className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                    <span className="text-[10px] md:text-[11px] font-medium uppercase tracking-wider">Audio Enabled</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Shield className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                    <span className="text-[10px] md:text-[11px] font-medium uppercase tracking-wider">Encrypted</span>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-white">New meeting</p>
+                    <p className="text-xs text-indigo-200/70">Start instantly, share the link</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative group w-full"
-          >
-            <div className="relative bg-[#0F1115]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 md:p-8 lg:p-10 shadow-2xl text-center">
-              <div className="space-y-6">
-                <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-indigo-600 to-cyan-500 rounded-[2rem] flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                  <LogIn className="w-8 h-8 text-white" />
+                <ChevronRight className="w-4 h-4 text-white/60 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {/* Join with ID */}
+              <div className="w-full flex gap-2">
+                <div className="relative flex-1">
+                  <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleJoinMeeting()}
+                    placeholder="Enter a meeting ID"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl py-3.5 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all"
+                  />
                 </div>
-                <div>
-                  <h3 className="text-xl md:text-2xl font-bold mb-2">Welcome to FUTURE-MEET</h3>
-                  <p className="text-gray-400 text-sm">
-                    Sign in to join meetings and save your meeting history
-                  </p>
-                </div>
-                <button
-                  onClick={() => signIn("google")}
-                  className="w-full bg-white text-black font-bold py-3 md:py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleJoinMeeting}
+                  disabled={!roomId.trim()}
+                  className="px-5 py-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] disabled:opacity-30 disabled:pointer-events-none text-white text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <span>Sign in with Google</span>
+                  Join
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
+            </motion.div>
+
+            {/* Recent Meetings */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="pt-4"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Recent meetings
+                </p>
+                <button
+                  onClick={() => router.push("/profile")}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  View all
+                  <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
+
+              {isLoadingMeetings ? (
+                <div className="flex items-center justify-center py-8 text-gray-600">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </div>
+              ) : recentMeetings.length > 0 ? (
+                <div className="space-y-1.5">
+                  {recentMeetings.map((meeting) => (
+                    <motion.div
+                      key={meeting.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="group flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.05] transition-all"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                          <Video className="w-3.5 h-3.5 text-indigo-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white truncate">
+                            {meeting.title || "Untitled Meeting"}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Clock className="w-2.5 h-2.5 text-gray-600" />
+                            <p className="text-[10px] text-gray-500">
+                              {new Date(meeting.createdAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => copyToClipboard(meeting.meetingId)}
+                          className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-gray-300 transition-all cursor-pointer"
+                          title="Copy ID"
+                        >
+                          {copiedId === meeting.meetingId ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Clipboard className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() =>
+                            router.push(`/meeting/${meeting.meetingId}`)
+                          }
+                          className="p-1.5 rounded-lg hover:bg-indigo-500/20 text-gray-500 hover:text-indigo-400 transition-all cursor-pointer"
+                          title="Rejoin"
+                        >
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-xs text-gray-600 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+                  No meetings saved yet. Start one above!
+                </div>
+              )}
+            </motion.div>
+
+          </div>
+        ) : (
+          /* Sign-in state */
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-sm text-center"
+          >
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-xl shadow-indigo-500/20">
+              <Video className="w-7 h-7 text-white" />
             </div>
+            <h1 className="text-2xl font-bold tracking-tight mb-2">
+              Welcome to FutureMeet
+            </h1>
+            <p className="text-sm text-gray-400 mb-8 leading-relaxed">
+              AI-powered meetings with live transcription and Q&amp;A. Sign in to get started.
+            </p>
+            <button
+              onClick={() => signIn("google")}
+              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-white text-gray-900 font-semibold text-sm hover:bg-gray-100 transition-all shadow-lg cursor-pointer"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Continue with Google
+            </button>
           </motion.div>
         )}
-      </div>
+      </main>
 
-      {/* Footer Branding */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
-        className="absolute bottom-4 md:bottom-8 text-[10px] md:text-[11px] text-gray-600 font-medium tracking-[0.2em] uppercase text-center"
-      >
-        Powered by Stream SDK & Next.js
-      </motion.div>
+      {/* Footer */}
+      <footer className="relative z-10 py-5 text-center border-t border-white/[0.04]">
+        <p className="text-xs text-gray-600">
+          End-to-end encrypted · AI transcription · Powered by Stream
+        </p>
+      </footer>
     </div>
   );
 }
