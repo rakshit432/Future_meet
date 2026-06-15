@@ -14,8 +14,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FUTURE-MEET",
-  description: "AI-powered meeting assistant",
+  title: "FutureMeet — AI-Powered Video Meetings",
+  description: "Real-time AI meeting assistant with live transcription, summaries, and Q&A. Powered by Gemini and Stream.",
+  keywords: ["AI meetings", "video call", "live transcription", "Gemini AI", "FutureMeet"],
 };
 
 export default function RootLayout({

@@ -91,6 +91,72 @@ body {
 .wave-bar:nth-child(6) { animation: wave-bounce 1.4s ease-in-out infinite; }
 .wave-bar:nth-child(7) { animation: wave-bounce 0.9s ease-in-out infinite; }
 
+/* ── Home Page Animations ─────────────────────────── */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-20px) scale(1.04); }
+}
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-12px) rotate(2deg); }
+  66% { transform: translateY(8px) rotate(-1deg); }
+}
+@keyframes shimmer-text {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes draw-line {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+
+.animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
+.animate-float-medium { animation: float-medium 8s ease-in-out infinite; }
+.animate-shimmer-text {
+  background-size: 200% 200%;
+  animation: shimmer-text 4s ease-in-out infinite;
+}
+.animate-pulse-ring { animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite; }
+.animate-blink { animation: blink-cursor 1s step-end infinite; }
+.animate-slide-up { animation: slide-up-fade 0.6s ease-out both; }
+.animate-glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
+
+/* Tech grid background */
+.tech-grid-bg {
+  background-image:
+    linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Transcript lines shimmer */
+@keyframes transcript-typing {
+  from { max-width: 0; }
+  to { max-width: 100%; }
+}
+.transcript-line {
+  animation: transcript-typing 1.2s cubic-bezier(0.4,0,0.2,1) both;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 /* Stream SDK Customizations */
 .str-video__speaker-layout {
   background: transparent !important;
