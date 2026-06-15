@@ -20,9 +20,9 @@ import { useSession, signIn, signOut } from "next-auth/react";
 
 export default function Home() {
   const [roomId, setRoomId] = useState("");
-  const [recentMeetings, setRecentMeetings] = useState([]);
+  const [recentMeetings, setRecentMeetings] = useState<any[]>([]);
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const router = useRouter();
   const { data: session, status } = useSession();
 
