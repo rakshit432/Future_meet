@@ -41,7 +41,7 @@ export default function Home() {
 
   const generateId = () => {
     const chars = "abcdefghijklmnopqrstuvwxyz";
-    const part = (len) =>
+    const part = (len: number) =>
       Array.from({ length: len }, () =>
         chars[Math.floor(Math.random() * chars.length)]
       ).join("");
@@ -57,7 +57,7 @@ export default function Home() {
     router.push(`/meeting/${roomId.trim()}`);
   };
 
-  const copyToClipboard = (id) => {
+  const copyToClipboard = (id: string) => {
     navigator.clipboard.writeText(id);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
